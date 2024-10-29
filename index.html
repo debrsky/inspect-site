@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Проверка сайта</title>
+  </head>
+  <body>
+    <button id="inspect">Начать проверку</button>
+    <script>
+      const sse = new EventSource('/events');
+      sse.addEventListener('message', (event) => {
+        console.log('data', event.data);
+      });
+
+      const inspectBtn = document.getElementById('inspect');
+      inspectBtn.addEventListener('click', async (event) => {
+        try {
+        const res = await fetch('/inspect?start=1');
+        if (!res.ok) {
+          console.log({res});
+        } else {
+          const url = '/log';
+          const windowName = 'Лог проверки сайта';
+          const windowFeatures = 'width=800,height=600,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes';
+
+          const newWindow = window.open(url, windowName, windowFeatures);
+        }
+
+        } catch (err) {
+          console.log(err);
+        }
+      })
+    </script>
+  </body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    #list>li {
+      word-wrap: break-word;
+      word-break: break-all;
+      white-space: normal;
+    }
+
+    #list a {
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Лог проверки сайта</h1>
+  </header>
+  <main>
+    <ul id="list"></ul>
+  </main>
+  <footer>
+  </footer>
+  <script>
+    const listElement = document.getElementById('list');
+
+    const sse = new EventSource('/events');
+    sse.addEventListener('message', (event) => {
+      console.log('data', event.data);
+      const {idx, url, ok} = JSON.parse(event.data);
+
+      const liElement = document.createElement('LI');
+      // liElement.textContent = `${ok ? '🔗' : '❌'} ${idx}) ${decodeURIComponent(url)}`;
+
+      listElement.insertAdjacentHTML('afterbegin', `<li>${ok ? '🔗' : '❌'} ${idx}) <a href="${url}">${decodeURIComponent(url)}</a></li>`);
+    });
+    sse.addEventListener('start', (event) => {
+      console.log('start', event.data);
+      while (listElement.firstChild) {
+        listElement.removeChild(listElement.firstChild);
+      };
+
+      const startElement = listElement.previousElementSibling;
+      if (startElement) {
+        startElement.remove();
+      };
+      const finishElement = listElement.nextElementSibling;
+      if (finishElement) {
+        finishElement.remove();
+      };
+
+      const pElement = document.createElement('P');
+      pElement.textContent = "Начата проверка";
+      listElement.insertAdjacentElement('afterend', pElement);
+
+    });
+    sse.addEventListener('finish', (event) => {
+      console.log('finish', event.data);
+      const pElement = document.createElement('P');
+      pElement.textContent = "Проверка закончена ∎";
+      listElement.insertAdjacentElement('beforebegin', pElement);
+    });
+
+  </script>
+</body>
+</html>
