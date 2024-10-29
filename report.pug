@@ -13,8 +13,31 @@ html(lang="ru")
     header
       - const domain = new URL(startUrl).host;
       h1 Проверка сайта #[a(href=startUrl)= domain]
-      - const timestamp = new Date();
-      p Дата и время проверки #[time(datetime=timestamp.toISOString())=timestamp.toLocaleString()]
+      -
+        const date = new Date();
+        // Опция для локализации с указанием часового пояса
+        const options = {
+          timeZone: 'Asia/Vladivostok', // Замените на нужный часовой пояс
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false // Используем 24-часовой формат
+        };
+
+        // Генерируем строку с учетом часового пояса
+        const localDateString = date.toLocaleString('sv-SE', options).replace(' ', 'T');
+
+        // Добавляем смещение часового пояса
+        const timezoneOffset = -date.getTimezoneOffset();
+        const offsetHours = String(Math.floor(Math.abs(timezoneOffset) / 60)).padStart(2, '0');
+        const offsetMinutes = String(Math.abs(timezoneOffset) % 60).padStart(2, '0');
+        const offsetSign = timezoneOffset >= 0 ? '+' : '-';
+        const isoWithTimezone = `${localDateString}${offsetSign}${offsetHours}:${offsetMinutes}`;
+
+      p Дата и время проверки #[time(datetime=date.toISOString())=isoWithTimezone]
       div
         button#inspect Начать новую проверку
 
