@@ -14,7 +14,7 @@ http {
         listen 80;
         server_name yourdomain.com;
 
-        location /sse {
+        location /events {
             proxy_pass http://backend_server;  # Замените на адрес вашего бекенда
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
