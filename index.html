@@ -13,6 +13,10 @@
         console.log('data', event.data);
       });
 
+      sse.addEventListener('finish', (event) => {
+        window.location.reload();
+      });
+
       const inspectBtn = document.getElementById('inspect');
       inspectBtn.addEventListener('click', async (event) => {
         try {

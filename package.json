@@ -13,9 +13,14 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@fastify/view": "^10.0.1",
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.5",
-    "pug": "^3.0.3"
+    "fastify": "^5.0.0",
+    "pino": "^9.5.0",
+    "pino-pretty": "^11.3.0",
+    "pug": "^3.0.3",
+    "rotating-file-stream": "^3.2.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"

@@ -1,103 +1,146 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const START_URL = process.env.START_URL;
-const STORAGE_DIR = 'storage';
-
-import http from 'http';
-import path from "path";
+import fastify from 'fastify';
+import fastifyView from '@fastify/view';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { readFile, writeFile, mkdir } from 'fs/promises';
-await mkdir(STORAGE_DIR, { recursive: true });
-
 import pug from 'pug';
 
 import inspector from './inspector.js';
 
-const requestHandler = async (req, res) => {
-  const { method, url } = req;
 
-  console.log(method, url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-  // uses a closure to preserve the value of the variable res
-  const sendLogEvent = ((res) => {
-    return (err, { event, data, id }) => {
-      if (err) throw Error();
+const START_URL = process.env.START_URL;
+const STORAGE_DIR = 'storage';
 
-      if (event) res.write(`event: ${event}\n`);
-      if (data) res.write(`data: ${data}\n`);
-      if (id) res.write(`id: ${id}\n`);
-      res.write(`\n\n`);
-    };
-  })(res);
+await mkdir(STORAGE_DIR, { recursive: true });
+await mkdir(path.join(STORAGE_DIR, 'logs'), { recursive: true });
 
-  if (url === '/' && method === 'GET') {
-    try {
-      const html = await readFile(path.join(STORAGE_DIR, 'report.html'), 'utf8');
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(html);
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        try {
-          const html = await readFile('index.html', 'utf8');
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end(html);
-        } catch (err) {
-          console.log(err);
-          res.writeHead(500, { 'Content-Type': 'text/plain' });
-          res.end('Internal Server Error\n');
-        }
-      } else {
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end('Internal Server Error\n');
+const app = fastify({
+  logger: {
+    level: 'info', // Уровень логирования
+    transport: {
+      target: 'pino-pretty', // Для более удобного вывода логов в консоль
+      options: {
+        colorize: true, // Цветной вывод
+        translateTime: 'SYS:standard'
       }
-    }
-
-  } else if ((url === '/log' && method === 'GET')) {
-    try {
-      const html = await readFile('log.html', 'utf8');
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(html);
-    } catch (err) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Not found\n');
-    }
-
-
-  } else if (url === '/inspect?start=1' && method === 'GET') {
-    console.log('Inspection started');
-    inspector.inspect(START_URL, async (err, report) => {
-      if (err) throw Error();
-
-      const makeHtml = pug.compileFile('report.pug');
-      const html = makeHtml(report);
-      await writeFile(path.join(STORAGE_DIR, 'report.html'), html);
-      console.log('Inspection done∎');
-    })
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-
-  } else if (url === '/events' && (method === 'GET' || method === 'HEAD')) {
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    });
-
-    inspector.subscribe(sendLogEvent);
-  } else {
-    res.writeHead(404, { 'Content-Type': 'text/plain' });
-    res.end('Not found');
+    },
   }
+});
 
-  req.on('close', () => {
-    inspector.unsubscribe(sendLogEvent);
+// Регистрируем point-of-view с pug
+await app.register(fastifyView, {
+  engine: {
+    pug: pug
+  },
+  root: path.join(__dirname, 'views'),
+  defaultContext: {
+    // Глобальные переменные для всех шаблонов
+    dev: process.env.NODE_ENV === 'development'
+  }
+});
 
-    res.end();
-  });
+app.setErrorHandler(function (error, request, reply) {
+  const statusCode = error.statusCode || 500;
+  reply
+    .type('text/html')
+    .code(statusCode)
+    .view('error.pug', {
+      statusCode,
+      message: error.message || 'Internal Server Error',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+});
+
+app.setNotFoundHandler((request, reply) => {
+  const error = new Error('Not Found');
+  error.statusCode = 404;
+  throw error;
+});
+
+// SSE handler helper
+const createSSEHandler = (request, reply) => {
+  return (err, { event, data, id }) => {
+    if (err) throw Error();
+
+    let payload = '';
+    if (event) payload += `event: ${event}\n`;
+    if (data) payload += `data: ${data}\n`;
+    if (id) payload += `id: ${id}\n`;
+    payload += '\n\n';
+
+    reply.raw.write(payload);
+  };
 };
 
-const server = http.createServer(requestHandler);
+// Routes
+app.get('/', async (request, reply) => {
+  try {
+    const html = await readFile(path.join(STORAGE_DIR, 'report.html'), 'utf8');
+    return reply.type('text/html').send(html);
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
 
-server.listen(process.env.PORT, () => {
-  console.log(`http server running, port ${process.env.PORT}`);
+    try {
+      const html = await readFile('index.html', 'utf8');
+      return reply.type('text/html').send(html);
+    } catch (err) {
+      request.log.error(err);
+      throw err;
+    }
+  }
+});
+
+app.get('/log', async (request, reply) => {
+  const html = await readFile('log.html', 'utf8');
+  return reply.type('text/html').send(html);
+});
+
+app.get('/inspect', async (request, reply) => {
+  if (request.query.start !== '1') {
+    reply.callNotFound();
+    return;
+  }
+
+  request.log.info('Inspection started');
+
+  inspector.inspect(START_URL, async (err, report) => {
+    if (err) throw Error();
+
+    const makeHtml = pug.compileFile('views/report.pug');
+    const html = makeHtml(report);
+    await writeFile(path.join(STORAGE_DIR, 'report.html'), html);
+    request.log.info('Inspection done∎');
+  });
+
+  return { ok: true };
+});
+
+app.get('/events', async (request, reply) => {
+  reply.raw.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  });
+
+  const sseHandler = createSSEHandler(request, reply);
+  inspector.subscribe(sseHandler);
+
+  request.raw.on('close', () => {
+    inspector.unsubscribe(sseHandler);
+    reply.raw.end();
+  });
+});
+
+// Start server
+app.listen({ port: process.env.PORT }, (err) => {
+  if (err) {
+    console.error(err);
+    process.exit(1);
+  }
 });
