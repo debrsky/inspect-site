@@ -15,7 +15,9 @@ function getLinks(html, baseUrl) {
       const url = $(elem).attr(attr);
       if (url) {
         if (!resources[resType]) resources[resType] = new Set();
-        const urlNormalized = new URL(url, baseUrl).href;
+        const urlObj = new URL(url, baseUrl);
+        urlObj.hash = ''; // clear hash
+        const urlNormalized = urlObj.href;
         resources[resType].add(urlNormalized);
 
         // check visibility
