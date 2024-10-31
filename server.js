@@ -30,6 +30,25 @@ const app = fastify({
         translateTime: 'SYS:standard'
       }
     },
+    serializers: {
+      // Определяем, как сериализовать запросы
+      req(req) {
+        return {
+          method: req.method,
+          url: req.url,
+          remoteAddress: req.ip || req.socket.remoteAddress,
+          headers: req.headers,
+        };
+      },
+      // При желании можно добавить сериализатор для ответа
+      res(res) {
+        return {
+          statusCode: res.statusCode,
+          headers: res.getHeaders(),
+          // Другие поля, которые вы хотите сохранить
+        };
+      }
+    }
   }
 });
 
@@ -87,8 +106,8 @@ app.get('/', async (request, reply) => {
   } catch (err) {
     if (err.code !== 'ENOENT') throw err;
 
-      const html = await readFile('index.html', 'utf8');
-      return reply.type('text/html').send(html);
+    const html = await readFile('index.html', 'utf8');
+    return reply.type('text/html').send(html);
   }
 });
 
