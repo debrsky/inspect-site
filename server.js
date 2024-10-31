@@ -46,6 +46,7 @@ await app.register(fastifyView, {
 });
 
 app.setErrorHandler(function (error, request, reply) {
+  request.log.error(error);
   const statusCode = error.statusCode || 500;
   reply
     .type('text/html')
@@ -86,13 +87,8 @@ app.get('/', async (request, reply) => {
   } catch (err) {
     if (err.code !== 'ENOENT') throw err;
 
-    try {
       const html = await readFile('index.html', 'utf8');
       return reply.type('text/html').send(html);
-    } catch (err) {
-      request.log.error(err);
-      throw err;
-    }
   }
 });
 
