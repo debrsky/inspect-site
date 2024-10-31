@@ -53,7 +53,7 @@ await mkdir('storage/screenshots', { recursive: true });
           // Добавление элемента в массив overflowing
           overflowing.push(element);
           // Добавление обводки
-          element.style.outline = '10px dashed red'; // Обводка для визуализации
+          element.style.outline = '10px dashed rgba(204, 0, 0, 0.7)'; // Обводка для визуализации
           // element.style.boxShadow = '0 0 50px 50px rgba(255, 0, 0, 0.7)'; // Тень
         }
       });
