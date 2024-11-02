@@ -9,7 +9,7 @@ function getLinks(html, baseUrl) {
     ['img', 'img', 'src'],
     ['css', 'link[rel="stylesheet"]', 'href'],
     ['script', 'script[src]', 'src'],
-    ['link', 'a[href]', 'href']
+    ['anchor', 'a[href]', 'href']
   ].forEach(([resType, selector, attr]) => {
     $(selector).each((_, elem) => {
       const url = $(elem).attr(attr);
