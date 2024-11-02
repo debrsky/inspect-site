@@ -70,6 +70,14 @@ const requestHandler = async (req, res) => {
 
       await writeFile(path.join(STORAGE_DIR, 'report.json'), JSON.stringify(report, null, 4));
 
+      const pages = report.links
+        .filter((link) => link?.contentType?.includes('text/html'))
+        .map((link) => ({ url: link.url, linksTo: link.linksTo, linksFrom: link.linksFrom }));
+      await writeFile(
+        path.join(STORAGE_DIR, 'pages.json'),
+        JSON.stringify(pages, null, 4)
+      );
+
       const makeHtml = pug.compileFile('report.pug');
       const html = makeHtml(report);
       await writeFile(path.join(STORAGE_DIR, 'report.html'), html);
