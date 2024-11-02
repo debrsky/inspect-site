@@ -68,6 +68,8 @@ const requestHandler = async (req, res) => {
     inspector.inspect(START_URL, async (err, report) => {
       if (err) throw Error();
 
+      await writeFile(path.join(STORAGE_DIR, 'report.json'), JSON.stringify(report, null, 4));
+
       const makeHtml = pug.compileFile('report.pug');
       const html = makeHtml(report);
       await writeFile(path.join(STORAGE_DIR, 'report.html'), html);
