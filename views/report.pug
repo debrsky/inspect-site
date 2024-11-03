@@ -9,6 +9,14 @@ html(lang="ru")
         cursor: pointer;
       }
 
+      .layout-error__viewport {
+        border: 10px solid #333333;
+        border-radius: 10px;
+        width: var(--width);
+        margin: auto;
+      }
+
+
   body
     header
       - const domain = new URL(startUrl).host;
@@ -56,6 +64,22 @@ html(lang="ru")
                     each linkFrom in row.linksFrom
                       li
                         a(href=linkFrom)= decodeURIComponent(linkFrom)
+
+      section.layout-errors
+        h2 Ошибки верстки
+        -
+          const layoutErrors = {
+            screenshots: [
+              ['screenshot@800.png', 800],
+              ['screenshot@1024.png', 1024]
+            ]
+          };
+        each screenshot in layoutErrors.screenshots
+          - const [file, width] = screenshot;
+          details.layout-errors__error.layout-error
+            summary Ширина экрана: #{width}
+            .layout-error__viewport(style=`--width: ${width/2}px;`)
+              img(src=`/screenshots/${file}`, width = width/2, alt="скриншот")
 
       section
         h2 Ссылки на test-dv.ru (#{testLinks.length})

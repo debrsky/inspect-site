@@ -3,9 +3,10 @@ dotenv.config();
 
 import fastify from 'fastify';
 import fastifyView from '@fastify/view';
+import fastifyStatic from '@fastify/static';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, access } from 'fs/promises';
 import pug from 'pug';
 
 import inspector from './inspector.js';
@@ -16,6 +17,7 @@ const __dirname = path.dirname(__filename);
 
 const START_URL = process.env.START_URL;
 const STORAGE_DIR = 'storage';
+const SCREENSHOTS_DIR = path.join(STORAGE_DIR, 'screenshots');
 
 await mkdir(STORAGE_DIR, { recursive: true });
 await mkdir(path.join(STORAGE_DIR, 'logs'), { recursive: true });
@@ -63,6 +65,11 @@ await app.register(fastifyView, {
     dev: process.env.NODE_ENV === 'development'
   }
 });
+
+// Регистрируем плагин static
+await app.register(fastifyStatic, {
+  root: path.join(__dirname, 'storage/screenshots'),
+})
 
 app.setErrorHandler(function (error, request, reply) {
   request.log.error(error);
@@ -150,6 +157,13 @@ app.get('/events', async (request, reply) => {
     inspector.unsubscribe(sseHandler);
     reply.raw.end();
   });
+});
+
+// route for screenshots
+app.get('/screenshots/:screenshotName', async (request, reply) => {
+  const screenshotName = request.params.screenshotName;
+
+  return reply.sendFile(screenshotName);
 });
 
 // Start server

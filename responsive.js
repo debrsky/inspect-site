@@ -24,11 +24,38 @@ await mkdir('storage/screenshots', { recursive: true });
   ];
 
   // URL целевой страницы
-  const url = 'https://dvggtk.ru/student/elektronnye-resursy/';
-  const elementSelector = 'h1, h2';
+  const url = 'https://dvggtk.ru/';
 
+  const checkFn = () => {
+    const errors = [];
 
+    // Верний баннер
+    const owlItems = document.querySelectorAll('.banner-top .owl-item');
+    const totalWidth = [...owlItems]
+      .reduce((prev, cur) => prev + cur.getBoundingClientRect().width, 0);
 
+    if (totalWidth < window.innerWidth * 3 / 4) {
+      document.querySelector('.banner-top').style.outline = "10px solid rgb(204, 0, 0, 0.5)";
+      errors.push("Ошибки в верстке верхнего баннера");
+    };
+
+    // Главное меню
+    const navElement = document.querySelector('#global_menu nav.navbar');
+    const { width: navWidth, height: navHeight } = navElement.getBoundingClientRect();
+    if (navHeight < 20) {
+      navElement.style.outline = "10px solid rgb(204, 0, 0, 0.5)";
+      errors.push("Не видно главное меню");
+    };
+
+    //
+    const result = { ok: true, width: window.innerWidth };
+
+    if (errors.length > 0) {
+      Object.assign(result, { ok: false, errors });
+    };
+
+    return result;
+  };
 
   // Цикл по разрешениям
   for (const resolution of resolutions) {
@@ -38,34 +65,13 @@ await mkdir('storage/screenshots', { recursive: true });
     // Переходим на целевую страницу
     await page.goto(url, { waitUntil: 'networkidle2' });
 
-    const overflowingElements = await page.evaluate(selector => {
-      const elements = document.querySelectorAll(selector);
-      const overflowing = [];
+    const checkResult = await page.evaluate(checkFn);
+    console.log(checkResult);
 
-      elements.forEach(element => {
-        // Получение размеров блока и размера его содержимого
-        const { clientWidth, clientHeight } = element;
-        const scrollWidth = element.scrollWidth;
-        const scrollHeight = element.scrollHeight;
-
-        // Проверка, выходит ли текст за границы блока
-        if (scrollWidth > clientWidth || scrollHeight > clientHeight) {
-          // Добавление элемента в массив overflowing
-          overflowing.push(element);
-          // Добавление обводки
-          element.style.outline = '10px dashed rgba(204, 0, 0, 0.7)'; // Обводка для визуализации
-          // element.style.boxShadow = '0 0 50px 50px rgba(255, 0, 0, 0.7)'; // Тень
-        }
-      });
-
-      return overflowing.length; // Возвращаем число переполненных элементов
-    }, elementSelector);
-
-
-    if (overflowingElements > 0) {
+    if (!checkResult.ok) {
       // Делаем скриншот
       await page.screenshot({
-        path: `storage/screenshots/screenshot-${resolution.width}.png`,
+        path: `storage/screenshots/screenshot@${resolution.width}.png`,
         fullPage: true // Если необходимо, чтобы скриншот был полной страницы
       });
 
