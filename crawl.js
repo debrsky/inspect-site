@@ -10,7 +10,7 @@ async function crawl(startUrl, log = () => { }) {
   while (Object.keys(linksToCheck).length > 0) {
     for (const [url, props] of Object.entries(linksToCheck)) {
       const res = await checkUrl(url, startUrl);
-      log({ url, ok: res.ok });
+      log({ url, status: res.status, ok: res.ok ? '✅' : '❌' });
       Object.assign(props, res);
       props.checked = true;
 

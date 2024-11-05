@@ -13,6 +13,7 @@ async function checkUrl(url, startUrl) {
   let contentType;
   let contentLength;
   let lastModified;
+  let eTag;
   const startTime = new Date().getTime();
   try {
     const controller = new AbortController();
@@ -25,7 +26,7 @@ async function checkUrl(url, startUrl) {
       return {
         responseTime: new Date().getTime() - startTime,
         ok: true,
-        status: res.status,
+        status,
         linksTo: [{ url: new URL(redirect, url).href, resType: 'redirect' }]
       };
     }
@@ -34,13 +35,14 @@ async function checkUrl(url, startUrl) {
       return {
         responseTime: new Date().getTime() - startTime,
         ok: false,
-        status: res.status
+        status
       };
     }
 
     contentType = res.headers.get('content-type');
     contentLength = res.headers.get('content-length');
     lastModified = res.headers.get('last-modified');
+    eTag = res.headers.get('etag');
 
     const isHtml = contentType && contentType.includes('text/html');
 
@@ -49,7 +51,7 @@ async function checkUrl(url, startUrl) {
     }
 
     const html = await res.text();
-    const links = getLinks(html, url);
+    const { links, metadata } = getLinks(html, url);
 
     return {
       responseTime: new Date().getTime() - startTime,
@@ -58,6 +60,9 @@ async function checkUrl(url, startUrl) {
       contentType,
       contentLength,
       lastModified,
+      eTag,
+      title: metadata.title,
+      description: metadata.description,
       linksTo: links
     }
   } catch (err) {
@@ -68,7 +73,8 @@ async function checkUrl(url, startUrl) {
         status,
         contentType,
         contentLength,
-        lastModified
+        lastModified,
+        eTag
       };
     }
 
