@@ -1,105 +1,96 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const START_URL = process.env.START_URL;
-const STORAGE_DIR = 'storage';
-
-import http from 'http';
-import path from "path";
-import { readFile, writeFile, mkdir } from 'fs/promises';
-await mkdir(STORAGE_DIR, { recursive: true });
-
+import fastify from 'fastify';
+import fastifyView from '@fastify/view';
+import fastifyStatic from '@fastify/static';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { mkdir } from 'fs/promises';
 import pug from 'pug';
 
 import inspector from './inspector.js';
+import routes from './routes.js';
 
-const requestHandler = async (req, res) => {
-  const { method, url } = req;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-  console.log(method, url);
+const START_URL = process.env.START_URL;
+const STORAGE_DIR = 'storage';
+const SCREENSHOTS_DIR = path.join(STORAGE_DIR, 'screenshots');
 
-  // uses a closure to preserve the value of the variable res
-  const sendLogEvent = ((res) => {
-    return (err, { event, data, id }) => {
-      if (err) throw Error();
+await mkdir(STORAGE_DIR, { recursive: true });
+await mkdir(path.join(STORAGE_DIR, 'logs'), { recursive: true });
 
-      if (event) res.write(`event: ${event}\n`);
-      if (data) res.write(`data: ${data}\n`);
-      if (id) res.write(`id: ${id}\n`);
-      res.write(`\n\n`);
-    };
-  })(res);
-
-  if (url === '/' && method === 'GET') {
-    try {
-      const html = await readFile(path.join(STORAGE_DIR, 'report.html'), 'utf8');
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(html);
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        try {
-          const html = await readFile('index.html', 'utf8');
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end(html);
-        } catch (err) {
-          console.log(err);
-          res.writeHead(500, { 'Content-Type': 'text/plain' });
-          res.end('Internal Server Error\n');
-        }
-      } else {
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end('Internal Server Error\n');
+const app = fastify({
+  logger: {
+    level: 'info',
+    transport: {
+      target: 'pino-pretty',
+      options: {
+        colorize: true,
+        translateTime: 'SYS:standard'
+      }
+    },
+    serializers: {
+      req(req) {
+        return {
+          method: req.method,
+          url: req.url,
+          remoteAddress: req.ip || req.socket.remoteAddress,
+          headers: req.headers,
+        };
+      },
+      res(res) {
+        return {
+          statusCode: res.statusCode,
+          headers: res.getHeaders(),
+        };
       }
     }
-
-  } else if ((url === '/log' && method === 'GET')) {
-    try {
-      const html = await readFile('log.html', 'utf8');
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(html);
-    } catch (err) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Not found\n');
-    }
-
-
-  } else if (url === '/inspect?start=1' && method === 'GET') {
-    console.log('Inspection started');
-    inspector.inspect(START_URL, async (err, report) => {
-      if (err) throw Error();
-
-      await writeFile(path.join(STORAGE_DIR, 'report.json'), JSON.stringify(report, null, 4));
-
-      const makeHtml = pug.compileFile('report.pug');
-      const html = makeHtml(report);
-      await writeFile(path.join(STORAGE_DIR, 'report.html'), html);
-      console.log('Inspection done∎');
-    })
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-
-  } else if (url === '/events' && (method === 'GET' || method === 'HEAD')) {
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    });
-
-    inspector.subscribe(sendLogEvent);
-  } else {
-    res.writeHead(404, { 'Content-Type': 'text/plain' });
-    res.end('Not found');
   }
+});
 
-  req.on('close', () => {
-    inspector.unsubscribe(sendLogEvent);
+await app.register(fastifyView, {
+  engine: {
+    pug: pug
+  },
+  root: path.join(__dirname, 'views'),
+  defaultContext: {
+    dev: process.env.NODE_ENV === 'development'
+  }
+});
 
-    res.end();
-  });
-};
+await app.register(fastifyStatic, {
+  root: path.join(__dirname, 'storage/screenshots'),
+})
 
-const server = http.createServer(requestHandler);
+app.setErrorHandler(function (error, request, reply) {
+  request.log.error(error);
+  const statusCode = error.statusCode || 500;
+  reply
+    .type('text/html; charset=utf-8')
+    .code(statusCode)
+    .view('error.pug', {
+      statusCode,
+      message: error.message || 'Internal Server Error',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+});
 
-server.listen(process.env.PORT, () => {
-  console.log(`http server running, port ${process.env.PORT}`);
+app.setNotFoundHandler((request, reply) => {
+  const error = new Error('Not Found');
+  error.statusCode = 404;
+  throw error;
+});
+
+// Register routes
+routes(app, inspector, START_URL);
+
+// Start server
+app.listen({ port: process.env.PORT }, (err) => {
+  if (err) {
+    console.error(err);
+    process.exit(1);
+  }
 });

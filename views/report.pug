@@ -1,0 +1,246 @@
+doctype html
+html(lang="ru")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    title Проверка сайта dvggtk.ru
+    style.
+      summary {
+        cursor: pointer;
+      }
+
+      li + li {
+        margin-top: 0.5em;
+      }
+
+      .layout-error__viewport {
+        border: 10px solid #333333;
+        border-radius: 10px;
+        width: var(--width);
+        margin: auto;
+      }
+
+      /* Стили для элемента, на который ссылается :target */
+      :target {
+          color: #007BFF; /* Цвет текста (синий) */
+          text-decoration: underline; /* Подчеркивание текста */
+          font-weight: bold; /* Жирный шрифт */
+          transition: color 0.3s ease, font-weight 0.3s ease; /* Плавный переход для цвета и стиля шрифта */
+      }
+
+      /* Дополнительный эффект при наведении */
+      :target:hover {
+          color: #0056b3; /* Более темный синий при наведении */
+      }
+
+  body
+    header
+      - const domain = new URL(startUrl).host;
+      h1 Проверка сайта #[a(href=startUrl)= domain]
+      -
+        const date = new Date(metadata.date);
+        // Опция для локализации с указанием часового пояса
+        const options = {
+          timeZone: 'Asia/Vladivostok', // Замените на нужный часовой пояс
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false // Используем 24-часовой формат
+        };
+
+        // Генерируем строку с учетом часового пояса
+        const localDateString = date.toLocaleString('sv-SE', options).replace(' ', 'T');
+
+        // Добавляем смещение часового пояса
+        const timezoneOffset = -date.getTimezoneOffset();
+        const offsetHours = String(Math.floor(Math.abs(timezoneOffset) / 60)).padStart(2, '0');
+        const offsetMinutes = String(Math.abs(timezoneOffset) % 60).padStart(2, '0');
+        const offsetSign = timezoneOffset >= 0 ? '+' : '-';
+        const isoWithTimezone = `${localDateString}${offsetSign}${offsetHours}:${offsetMinutes}`;
+
+      p Дата и время проверки #[time(datetime=metadata.date)=isoWithTimezone]
+      div
+        button#inspect Начать новую проверку
+
+    main
+      -
+        const brokenLinks = Object.entries(links).filter(([id, link]) => {
+          if (link.ok || link.isExternal) return false;
+          if (!link.status) return false;
+          if (link.status <400 || link.status >= 500) return false;
+
+          return true;
+        });
+
+        const brokenLinksIdsSet = new Set(brokenLinks.map(([id]) => Number(id)));
+
+        const pagesWithBrokenLinks = Object.entries(links).filter(([id, link]) => {
+          if (link.isExternal) return false;
+          if (!link.ok) return false;
+          if (!link.contentType) return false;
+          if (!link.contentType.includes('text/html')) return false;
+          if (!link.linksTo.some(({resType, id, hidden}) =>
+            !hidden
+            && resType === 'anchor'
+            && brokenLinksIdsSet.has(id)
+          )) return false;
+
+          const url = new URL(link.url);
+          if (url.searchParams.has('special_version')) return false;
+
+          return true;
+        });
+
+        const brokenResourseLinks = brokenLinks.filter(([idStrOfBrokenLink, brokenlink]) => {
+          const idOfBrokenLink = Number(idStrOfBrokenLink);
+
+          for (const [, link] of Object.entries(links)) {
+            if (!link.linksTo) continue;
+
+            for (const {resType, id} of link.linksTo) {
+              if (resType !== 'anchor' && id === idOfBrokenLink) return true;
+            }
+          };
+
+          return false;
+        });
+
+        const testLinks = Object.entries(links).filter(([id, link]) => {
+          const url = new URL(link.url);
+          if (url.hostname === 'test-dv.ru') {
+            const linksFrom = link.linksFrom.filter((idOfLinkFrom)=> links[idOfLinkFrom].status !== 301);
+            if (linksFrom.length > 0) return true;
+          }
+
+          return false;
+        });
+
+
+      section
+        h2 Результаты проверки
+        ol
+          li
+            | #{pagesWithBrokenLinks.length > 0 ? "❌" : "✅"}
+            |
+            |
+            a(href="#pagesWithBrokenLinks") Страницы с битыми ссылками
+            |
+            |
+            | #{pagesWithBrokenLinks.length > 0 ? `: ${pagesWithBrokenLinks.length}` : ": не найдены"}
+
+          li
+            | #{brokenResourseLinks.length > 0 ? "❌" : "✅"}
+            |
+            |
+            a(href="#brokenResourseLinks") Недоступные ресурсы
+            |
+            |
+            | #{brokenResourseLinks.length > 0 ? `: ${brokenResourseLinks.length}` : ": не найдены"}
+
+          li
+            | #{testLinks.length > 0 ? "❌" : "✅"}
+            |
+            |
+            a(href="#testLinks") Ссылки на test-dv.ru
+            |
+            |
+            | #{testLinks.length > 0 ? `: ${testLinks.length}` : ": не найдены"}
+
+      hr
+
+      section
+        h2#pagesWithBrokenLinks Страницы с битыми ссылками (#{pagesWithBrokenLinks.length})
+        ol
+          each row in pagesWithBrokenLinks
+            - const id = Number(row[0]);
+            - const link = row[1];
+            li
+              div
+                a(href=link.url target="_blank") [#{link.title} #{link.url}]
+              ol
+                each linkToObj in link.linksTo
+                  - const linkTo = links[linkToObj.id];
+                  if !linkTo.ok && linkToObj.resType === 'anchor' && !linkToObj.hidden && (linkTo.status && (linkTo.status >= 400 && linkTo.status < 500))
+                    li ❌ [#{linkToObj.resType}] [#{linkToObj.anchorContent} #[u #{linkToObj.urlSource}]] [#{linkTo.status}] #{linkTo.error} #{linkToObj.hidden ? 'hidden' : ''}
+
+      section
+        h2#brokenResourseLinks Недоступные ресурсы (#{brokenResourseLinks.length})
+        ol
+          each row in brokenResourseLinks
+            - const id = Number(row[0]);
+            - const link = row[1];
+            li
+              div ❌ [#{link.url}] [#{link.status}]
+              details
+                summary Страницы, где используется недоступный ресурс (#{link.linksFrom.length})
+                ul
+                  each linkIdFrom in link.linksFrom
+                    - const linkFrom = links[linkIdFrom];
+                    li
+                      article
+                        div
+                          a(href=linkFrom.url target='_blank') [#{linkFrom.title} #{linkFrom.url}]
+                        each linkTo in linkFrom.linksTo
+                          if linkTo.id === id
+                            div(style="padding-left: 3ch;") [#{linkTo.resType}] [#{decodeURIComponent(linkTo.urlSource)} #{linkTo.anchorContent}]
+
+      section
+        h2#testLinks Ссылки на test-dv.ru (#{testLinks.length})
+        ol
+          each row in testLinks
+            - const id = Number(row[0]);
+            - const link = row[1];
+            li
+              div
+                div
+                  //- span #{JSON.stringify(id)} #{JSON.stringify(checkLink)}
+                  | ❓
+                  |
+                  |
+                  a(href=link.url target="_blank") [#{decodeURIComponent(link.url)}]
+                details
+                  summary Страницы, где найдена ссылка (#{link.linksFrom.length})
+                  ol
+                    each linkIdFrom in link.linksFrom
+                      - const linkFrom = links[linkIdFrom];
+                      li
+                        article
+                          div
+                            a(href=linkFrom.url target='_blank') [#{linkFrom.title} #{linkFrom.url}]
+                          each linkTo in linkFrom.linksTo
+                            if linkTo.id === id
+                              div(style="padding-left: 3ch;") [#{linkTo.resType}] [#{decodeURIComponent(linkTo.urlSource)} #{linkTo.anchorContent}]
+
+    footer ∎
+
+    script.
+      const sse = new EventSource('/events');
+      sse.addEventListener('message', (event) => {
+        console.log('data', event.data);
+      });
+
+      sse.addEventListener('finish', (event) => {
+        window.location.reload();
+      });
+
+      const inspectBtn = document.getElementById('inspect');
+      inspectBtn.addEventListener('click', async (event) => {
+        try {
+        const res = await fetch('/inspect?start=1');
+        if (!res.ok) {
+          console.log({res});
+        } else {
+          const url = '/log';
+          const windowName = 'Лог проверки сайта';
+          const windowFeatures = 'width=800,height=600,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes';
+
+          const newWindow = window.open(url, windowName, windowFeatures);
+        }
+
+        } catch (err) {
+          console.log(err);
+        }
+      })

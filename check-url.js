@@ -26,7 +26,7 @@ async function checkUrl(url, startUrl) {
       return {
         responseTime: new Date().getTime() - startTime,
         ok: true,
-        status: res.status,
+        status,
         linksTo: [{ url: new URL(redirect, url).href, resType: 'redirect' }]
       };
     }
@@ -35,7 +35,7 @@ async function checkUrl(url, startUrl) {
       return {
         responseTime: new Date().getTime() - startTime,
         ok: false,
-        status: res.status
+        status
       };
     }
 
@@ -51,7 +51,7 @@ async function checkUrl(url, startUrl) {
     }
 
     const html = await res.text();
-    const links = getLinks(html, url);
+    const { links, metadata } = getLinks(html, url);
 
     return {
       responseTime: new Date().getTime() - startTime,
@@ -61,6 +61,8 @@ async function checkUrl(url, startUrl) {
       contentLength,
       lastModified,
       eTag,
+      title: metadata.title,
+      description: metadata.description,
       linksTo: links
     }
   } catch (err) {
