@@ -1,8 +1,8 @@
 import checkUrl from "./check-url.js";
 
-async function crawl(startUrl, log = () => { }) {
+async function crawl(startUrl, onCheckUrl = () => { }) {
   const links = {
-    [startUrl]: { resType: 'link' }
+    [startUrl]: {}
   };
 
   let linksToCheck = Object.fromEntries(Object.entries(links).filter(([url, props]) => !props.checked));
@@ -10,7 +10,8 @@ async function crawl(startUrl, log = () => { }) {
   while (Object.keys(linksToCheck).length > 0) {
     for (const [url, props] of Object.entries(linksToCheck)) {
       const res = await checkUrl(url, startUrl);
-      log({ url, status: res.status, ok: res.ok ? '✅' : '❌' });
+      onCheckUrl({ url, status: res.status, ok: res.ok });
+
       Object.assign(props, res);
       props.checked = true;
 

@@ -29,7 +29,7 @@ html
   body
     .error
       h1.error-title Error #{statusCode}
-      p= message
+      pre= message
       if dev && stack
-        .stack
+        pre.stack
           code= stack

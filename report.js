@@ -1,50 +1,67 @@
 import crawl from './crawl.js';
 
-async function report(startUrl, onProgress = () => { }) {
-  const links = Object.fromEntries(
-    Object.entries(
-      await crawl(startUrl, onProgress)
-    )
-      .sort(([a], [b]) => {
-        if (a < b) return -1;
-        if (a > b) return 1;
-        return 0;
+const postProcessing = (links) => {
+  let idx = 1;
+  const linksWithId = Object.fromEntries(
+    Object.entries(links)
+      .map(([url, value]) => {
+        return [url, { id: idx++, ...value }];
       })
   );
 
-  Object.keys(links).forEach((urlProcessed) => {
-    const linksFrom = [];
-
-    for (const [urlLinkFromCandidate, props] of Object.entries(links)) {
-      if (props.linksTo
-        ?.some(({ url: urlLinkTo, resType, hidden }) =>
-          resType !== 'redirect' && !hidden && urlProcessed === urlLinkTo
-        )) {
-        linksFrom.push(urlLinkFromCandidate);
+  Object.entries(linksWithId).forEach(([url, value]) => {
+    if (value.linksTo) {
+      for (const linkTo of value.linksTo) {
+        const url = linkTo.url;
+        linkTo.id = linksWithId[url].id;
       };
     };
-
-    if (linksFrom.length > 0) {
-      linksFrom.sort((a, b) => {
-        if (a < b) return -1;
-        if (a > b) return 1;
-        return 0;
-      })
-
-      links[urlProcessed].linksFrom = linksFrom;
-    }
   });
 
-  const linksArr = Object.entries(links)
-    .map(([url, props]) => ({ url, ...props }));
+  Object.entries(linksWithId).forEach(([url, value]) => {
+    const linksFromSet = new Set();
+    // console.log('processing:', url, value.id);
+    Object.entries(linksWithId).forEach(([urlWithLinksTo, { id, linksTo }]) => {
+      if ((linksTo ?? []).some((linkTo) => linkTo.url === url)) {
+        linksFromSet.add(id);
+      }
+    });
 
-  const brokenLinks = linksArr
-    .filter(({ status, linksFrom }) => status >= 400 && status < 500 && linksFrom?.length > 0);
+    value.linksFrom = [...linksFromSet];
+  });
 
-  const testLinks = linksArr
-    .filter(({ url, linksFrom }) => new URL(url).hostname.includes('test-dv.ru') && linksFrom?.length > 0);
+  Object.entries(linksWithId).forEach(([, { linksTo }]) => {
+    if (!linksTo) return;
 
-  return { links: linksArr, brokenLinks, testLinks };
+    linksTo.forEach((linkTo) => {
+      delete linkTo.url;
+    });
+  });
+
+  const linksWithIdArray = Object.entries(linksWithId);
+  linksWithIdArray.sort(([a], [b]) => {
+    if (a < b) return -1;
+    if (a > b) return 1;
+    return 0;
+  });
+
+  return Object.fromEntries(
+    linksWithIdArray
+      .map(([url, data]) => [data.id, { url, ...data }])
+  );
+};
+
+async function report(startUrl, onCheckUrl = () => { }) {
+  const links = await crawl(startUrl, onCheckUrl);
+
+  const links2 = postProcessing(links);
+
+  return {
+    metadata: {
+      date: new Date().toISOString()
+    },
+    links: links2
+  }
 }
 
 export default report;
