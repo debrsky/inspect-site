@@ -37,6 +37,12 @@ export default function routes(app, inspector, startUrl) {
     return reply.view('report.pug', links);
   });
 
+  app.get('/stat', async (request, reply) => {
+    const links = JSON.parse(await readFile(path.join(STORAGE_DIR, 'links@latest.json'), 'utf8'));
+
+    return reply.view('stat.pug', links);
+  });
+
   app.get('/log', async (request, reply) => {
     const html = await readFile('log.html', 'utf8');
     return reply.type('text/html').send(html);

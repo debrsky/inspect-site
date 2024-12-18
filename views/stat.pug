@@ -1,0 +1,109 @@
+doctype html
+html(lang="ru")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    title Статистика dvggtk.ru
+    style.
+      summary {
+        cursor: pointer;
+      }
+
+      li + li {
+        margin-top: 0.5em;
+      }
+
+      .layout-error__viewport {
+        border: 10px solid #333333;
+        border-radius: 10px;
+        width: var(--width);
+        margin: auto;
+      }
+
+      .break-words {
+        overflow-wrap: break-word;
+        word-break: normal;
+      }
+
+  body
+    header
+      - const domain = new URL(startUrl).host;
+      h1 Статистика сайта #[a(href=startUrl)= domain]
+      -
+        const date = new Date(metadata.date);
+        // Опция для локализации с указанием часового пояса
+        const options = {
+          timeZone: 'Asia/Vladivostok', // Замените на нужный часовой пояс
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false // Используем 24-часовой формат
+        };
+
+        // Генерируем строку с учетом часового пояса
+        const localDateString = date.toLocaleString('sv-SE', options).replace(' ', 'T');
+
+        // Добавляем смещение часового пояса
+        const timezoneOffset = -date.getTimezoneOffset();
+        const offsetHours = String(Math.floor(Math.abs(timezoneOffset) / 60)).padStart(2, '0');
+        const offsetMinutes = String(Math.abs(timezoneOffset) % 60).padStart(2, '0');
+        const offsetSign = timezoneOffset >= 0 ? '+' : '-';
+        const isoWithTimezone = `${localDateString}${offsetSign}${offsetHours}:${offsetMinutes}`;
+
+      p Дата и время статистики #[time(datetime=metadata.date)=isoWithTimezone]
+
+    main
+      -
+        const pdfLinks = Object.entries(links).filter(([id, link]) => {
+          if (link.contentType !== 'application/pdf') return false;
+          if (new URL(link.url).host !== new URL(startUrl).host) return false;
+
+          return true;
+        });
+
+        const pdfLinksIdsSet = new Set(pdfLinks.map(([id]) => Number(id)));
+
+        const pagesWithPdfLinks = Object.entries(links).filter(([id, link]) => {
+          if (link.isExternal) return false;
+          if (!link.ok) return false;
+          if (!link.contentType) return false;
+          if (!link.contentType.includes('text/html')) return false;
+          if (!link.linksTo.some(({resType, id, hidden}) =>
+            !hidden
+            && resType === 'anchor'
+            && pdfLinksIdsSet.has(id)
+          )) return false;
+
+          const url = new URL(link.url);
+          if (url.searchParams.has('special_version')) return false;
+
+          return true;
+        });
+
+      section
+        h2 Статистика
+        ol
+          each row in pdfLinks
+            - const pdfLinkId = Number(row[0]);
+            - const pdfLink = row[1];
+            li
+              //- pre= JSON.stringify(pdfLink, null, 4)
+              div #[a(href=pdfLink.url target="_blank") #{pdfLink.title} #{decodeURI(pdfLink.url)}]
+              ol
+                - const pdfLinksFrom = pdfLink.linksFrom.map((linkId) => links[linkId]);
+                each pdfLinkFrom in pdfLinksFrom
+                  if !new URL(pdfLinkFrom.url).searchParams.has('special_version')
+                    li [#{pdfLinkFrom.title} #[a(href=pdfLinkFrom.url) #{decodeURI(pdfLinkFrom.url)}]]
+                      - const pdfLinkToObjArray = pdfLinkFrom.linksTo.filter(({id}) => id === pdfLinkId);
+                      ul
+                        each pdfLinkToObj in pdfLinkToObjArray
+                          li.break-words
+                            //- pre= JSON.stringify(pdfLinkToObj)
+                            | [#{pdfLinkToObj.resType}]
+                            | [#{pdfLinkToObj.anchorContent} #[u #{decodeURIComponent(pdfLinkToObj.urlSource)}]]
+                            | #{pdfLinkToObj.hidden ? '[hidden]' : ''}
+
+    footer ∎
