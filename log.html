@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,6 +17,7 @@
     }
   </style>
 </head>
+
 <body>
   <header>
     <h1>Лог проверки сайта</h1>
@@ -31,12 +33,12 @@
     const sse = new EventSource('/events');
     sse.addEventListener('message', (event) => {
       console.log('data', event.data);
-      const {idx, url, ok} = JSON.parse(event.data);
+      const { idx, url, ok } = JSON.parse(event.data);
 
       const liElement = document.createElement('LI');
       // liElement.textContent = `${ok ? '🔗' : '❌'} ${idx}) ${decodeURIComponent(url)}`;
 
-      listElement.insertAdjacentHTML('afterbegin', `<li>${ok ? '🔗' : '❌'} ${idx}) <a href="${url}">${decodeURIComponent(url)}</a></li>`);
+      listElement.insertAdjacentHTML('afterbegin', `<li>${ok ? '🔗' : '❌'} ${idx + 1}) <a href="${url}">${decodeURI(url)}</a></li>`);
     });
     sse.addEventListener('start', (event) => {
       console.log('start', event.data);
@@ -67,4 +69,5 @@
 
   </script>
 </body>
+
 </html>

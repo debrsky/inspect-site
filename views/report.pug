@@ -217,17 +217,19 @@ html(lang="ru")
     footer ∎
 
     script.
+      let needReloadAfterFinish = false;
       const sse = new EventSource('/events');
       sse.addEventListener('message', (event) => {
         console.log('data', event.data);
       });
 
       sse.addEventListener('finish', (event) => {
-        window.location.reload();
+        if (needReloadAfterFinish) window.location.reload();
       });
 
       const inspectBtn = document.getElementById('inspect');
       inspectBtn.addEventListener('click', async (event) => {
+        needReloadAfterFinish = true;
         try {
         const res = await fetch('/inspect?start=1');
         if (!res.ok) {

@@ -5,7 +5,10 @@ const STORAGE_DIR = 'storage';
 
 // SSE handler helper
 const createSSEHandler = (request, reply) => {
-  return (err, { event, data, id }) => {
+  const lastEventId = Number(request.headers['last-event-id'] ?? 0);
+  console.log('LAST-EVENT-ID:', lastEventId);
+
+  const handler = (err, { event, data, id }) => {
     if (err) throw Error();
 
     let payload = '';
@@ -16,6 +19,10 @@ const createSSEHandler = (request, reply) => {
 
     reply.raw.write(payload);
   };
+
+  handler.lastEventId = lastEventId;
+
+  return handler;
 };
 
 function generateFileName() {

@@ -5,6 +5,18 @@ const inspector = {
   isInspecting: false,
   log: [],
   subscribe(handler) {
+    handler(null, { event: 'start', data: 'start' });
+    if (Number.isInteger(handler.lastEventId)) {
+      for (let idx = handler.lastEventId; idx < this.log.length; ++idx) {
+        const data = this.log[idx];
+        handler(null, {
+          id: idx,
+          data: JSON.stringify(data)
+        });
+      }
+    }
+    if (!this.isInspecting) handler(null, { event: 'finish', data: 'done' });
+
     this.subscribers.add(handler);
   },
   unsubscribe(handler) {
@@ -23,12 +35,13 @@ const inspector = {
     this.toSubscribers({ event: 'start', data: 'start' });
 
     report(startUrl, ({ url, ok }) => {
-      this.log.push(url);
+      const data = { idx: this.log.length, url, ok };
+      this.log.push(data);
 
       for (const subscriber of this.subscribers) {
         subscriber(null, {
           id: this.log.length - 1,
-          data: JSON.stringify({ idx: this.log.length, url, ok })
+          data: JSON.stringify(data)
         });
       }
     })
