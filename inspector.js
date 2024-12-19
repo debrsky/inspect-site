@@ -34,8 +34,8 @@ const inspector = {
 
     this.toSubscribers({ event: 'start', data: 'start' });
 
-    report(startUrl, ({ url, ok }) => {
-      const data = { idx: this.log.length, url, ok };
+    report(startUrl, ({ url, status, ok }) => {
+      const data = { idx: this.log.length, url, status, ok };
       this.log.push(data);
 
       for (const subscriber of this.subscribers) {

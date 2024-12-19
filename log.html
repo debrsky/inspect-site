@@ -33,12 +33,12 @@
     const sse = new EventSource('/events');
     sse.addEventListener('message', (event) => {
       console.log('data', event.data);
-      const { idx, url, ok } = JSON.parse(event.data);
+      const { idx, url, status, ok } = JSON.parse(event.data);
 
       const liElement = document.createElement('LI');
       // liElement.textContent = `${ok ? '🔗' : '❌'} ${idx}) ${decodeURIComponent(url)}`;
 
-      listElement.insertAdjacentHTML('afterbegin', `<li>${ok ? '🔗' : '❌'} ${idx + 1}) <a href="${url}">${decodeURI(url)}</a></li>`);
+      listElement.insertAdjacentHTML('afterbegin', `<li>${ok ? '🔗' : '❌'} ${idx + 1}) <a href="${url}">${decodeURI(url)}</a> [${status}]</li>`);
     });
     sse.addEventListener('start', (event) => {
       console.log('start', event.data);

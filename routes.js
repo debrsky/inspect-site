@@ -6,7 +6,6 @@ const STORAGE_DIR = 'storage';
 // SSE handler helper
 const createSSEHandler = (request, reply) => {
   const lastEventId = Number(request.headers['last-event-id'] ?? 0);
-  console.log('LAST-EVENT-ID:', lastEventId);
 
   const handler = (err, { event, data, id }) => {
     if (err) throw Error();
