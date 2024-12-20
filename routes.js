@@ -96,4 +96,9 @@ export default function routes(app, inspector, startUrl) {
     const screenshotName = request.params.screenshotName;
     return reply.sendFile(screenshotName);
   });
+
+  app.get('/favicon.ico', async (request, reply) => {
+    const icon = await readFile('favicon.ico', 'utf8');
+    return reply.type('image/x-icon').send(icon);
+  });
 }
