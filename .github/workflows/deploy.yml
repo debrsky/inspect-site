@@ -6,4 +6,4 @@ jobs:
   Explore-Gitea-Actions:
     runs-on: ubuntu-latest
     steps:
-      - run: "curl -sX POST -d '{\"location\": \"https://git.smokeofanarchy.ru/MaxSMoke/libRSV/archive/master.zip\"}' -H 'Content-Type: application/json' -H 'Authorization: Bearer ${{ secrets.DEPLOY_INSPECT_TOKEN }}' https://deploy.dvggtk.su/inspect"
+      - run: "curl -sX POST -d '{\"location\": \"https://github.com/debrsky/inspect-site/archive/refs/heads/master.zip\"}' -H 'Content-Type: application/json' -H 'Authorization: Bearer ${{ secrets.DEPLOY_INSPECT_TOKEN }}' https://deploy.dvggtk.su/inspect"
