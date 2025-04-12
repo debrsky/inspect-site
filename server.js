@@ -88,7 +88,7 @@ app.setNotFoundHandler((request, reply) => {
 routes(app, inspector, START_URL);
 
 // Start server
-app.listen({ port: process.env.PORT }, (err) => {
+app.listen({ host: '0.0.0.0', port: process.env.PORT }, (err) => {
   if (err) {
     console.error(err);
     process.exit(1);
